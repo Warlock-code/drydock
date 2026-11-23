@@ -6,6 +6,84 @@ import CheckoutModal from "@/components/CheckoutModal";
 
 export default function DisputeShieldPage() {
   const [checkout, setCheckout] = useState<"monthly" | "lifetime" | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [status, setStatus] = useState("");
+  const [form, setForm] = useState({
+    storeName: "",
+    orderId: "",
+    transactionAmount: "",
+    disputeReason: "",
+    customerEmail: "",
+    ipAddress: "",
+    avsCvcMatch: "",
+    carrierAndTracking: "",
+    deliveryStatus: "",
+    policySummary: "",
+  });
+
+  const inputClass = "mt-2 h-11 w-full border border-[#222226] bg-[#09090B] px-3 text-sm text-[#FAFAFA] placeholder:text-[#5F5F66]";
+  const labelClass = "text-[11px] font-medium text-[#B3B3B8]";
+
+  function updateField(field: keyof typeof form, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function loadSample() {
+    setForm({
+      storeName: "Northstar Supply Co.",
+      orderId: "ORD-8841",
+      transactionAmount: "$248.00",
+      disputeReason: "Merchandise/Services Not Received",
+      customerEmail: "customer@example.com",
+      ipAddress: "203.0.113.42",
+      avsCvcMatch: "AVS Y - matched / CVC M - matched",
+      carrierAndTracking: "UPS // 1Z8841EXAMPLE",
+      deliveryStatus: "Delivered - signed by recipient",
+      policySummary: "Orders ship within 2 business days. Delivery is confirmed by carrier proof. Refund requests are accepted within 30 days of delivery.",
+    });
+    setStatus("Sample dispute loaded.");
+  }
+
+  async function generateDossier(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (typeof window !== "undefined" && window.localStorage.getItem("drydock_ds_free_used") === "true") {
+      setCheckout("monthly");
+      return;
+    }
+
+    setGenerating(true);
+    setStatus("");
+
+    try {
+      const response = await fetch("/api/disputes/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Unable to generate dossier.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `DisputeShield-${form.orderId.replace(/[^A-Za-z0-9_-]+/g, "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      window.localStorage.setItem("drydock_ds_free_used", "true");
+      setStatus("Dossier generated and downloaded.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to generate dossier.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <>
@@ -71,6 +149,70 @@ export default function DisputeShieldPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="border-b border-[#222226] bg-[#09090B]">
+        <div className="mx-auto max-w-7xl px-5 py-16 md:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-[10px] tracking-[0.14em] text-[#10B981]">LIVE GENERATOR // 1 FREE DOWNLOAD</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Live Dispute Dossier Generator</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8E8E93]">Compile transaction, identity, fulfillment, and policy evidence into a structured rebuttal PDF.</p>
+            </div>
+            <button type="button" onClick={loadSample} className="h-10 rounded-lg border border-[#333338] bg-[#111113] px-4 text-xs font-semibold hover:border-[#4A4A50]">
+              Load Sample Dispute
+            </button>
+          </div>
+
+          <form onSubmit={generateDossier} className="mt-8 grid gap-3 rounded-xl border border-[#222226] bg-[#111113] p-5 md:grid-cols-2 md:p-7">
+            <label className={labelClass}>
+              Store name
+              <input className={inputClass} required value={form.storeName} onChange={(event) => updateField("storeName", event.target.value)} placeholder="Northstar Supply Co." />
+            </label>
+            <label className={labelClass}>
+              Order ID
+              <input className={inputClass} required value={form.orderId} onChange={(event) => updateField("orderId", event.target.value)} placeholder="ORD-8841" />
+            </label>
+            <label className={labelClass}>
+              Transaction amount
+              <input className={inputClass} required value={form.transactionAmount} onChange={(event) => updateField("transactionAmount", event.target.value)} placeholder="$248.00" />
+            </label>
+            <label className={labelClass}>
+              Dispute reason
+              <input className={inputClass} required value={form.disputeReason} onChange={(event) => updateField("disputeReason", event.target.value)} placeholder="Merchandise/Services Not Received" />
+            </label>
+            <label className={labelClass}>
+              Customer email
+              <input className={inputClass} required type="email" value={form.customerEmail} onChange={(event) => updateField("customerEmail", event.target.value)} placeholder="customer@example.com" />
+            </label>
+            <label className={labelClass}>
+              IP address
+              <input className={inputClass} required value={form.ipAddress} onChange={(event) => updateField("ipAddress", event.target.value)} placeholder="203.0.113.42" />
+            </label>
+            <label className={labelClass}>
+              AVS / CVC match
+              <input className={inputClass} required value={form.avsCvcMatch} onChange={(event) => updateField("avsCvcMatch", event.target.value)} placeholder="AVS Y - matched / CVC M - matched" />
+            </label>
+            <label className={labelClass}>
+              Carrier and tracking
+              <input className={inputClass} required value={form.carrierAndTracking} onChange={(event) => updateField("carrierAndTracking", event.target.value)} placeholder="UPS // 1Z8841EXAMPLE" />
+            </label>
+            <label className={`md:col-span-2 ${labelClass}`}>
+              Delivery status
+              <input className={inputClass} required value={form.deliveryStatus} onChange={(event) => updateField("deliveryStatus", event.target.value)} placeholder="Delivered - signed by recipient" />
+            </label>
+            <label className={`md:col-span-2 ${labelClass}`}>
+              Policy summary
+              <textarea className="mt-2 min-h-28 w-full resize-y border border-[#222226] bg-[#09090B] px-3 py-3 text-sm text-[#FAFAFA] placeholder:text-[#5F5F66]" required value={form.policySummary} onChange={(event) => updateField("policySummary", event.target.value)} placeholder="Describe shipping, delivery, return, and refund terms..." />
+            </label>
+            <div className="mt-2 flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:justify-between">
+              <p className="font-mono text-[9px] text-[#8E8E93]" aria-live="polite">{status || "FREE FILE // 1 REMAINING ON THIS DEVICE"}</p>
+              <button type="submit" disabled={generating} className="h-11 min-w-48 rounded-lg bg-[#FAFAFA] px-5 text-sm font-semibold text-[#09090B] disabled:cursor-wait disabled:opacity-60">
+                {generating ? "Generating..." : "Generate & Download PDF"}
+              </button>
+            </div>
+          </form>
         </div>
       </section>
 
