@@ -87,7 +87,7 @@ export default function OffersPage() {
                       <div className="flex w-full shrink-0 items-end justify-between md:w-48">
                         <div className="flex items-end gap-1">
                           <span className="font-mono text-3xl">${tool.monthlyPrice}</span>
-                          <span className="pb-1 text-xs text-[#8E8E93]">/mo</span>
+                          <span className="pb-1 text-xs text-[#8E8E93]">{tool.sixMonthPrice ? "/6 months" : "/mo"}</span>
                         </div>
                         <ChevronDown size={18} strokeWidth={1.5} className={`mb-1 transition ${expandedTool === tool.slug ? "rotate-180" : ""}`} />
                       </div>

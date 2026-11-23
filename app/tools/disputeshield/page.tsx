@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Check, FileText, ShieldCheck } from "lucide-react";
 import CheckoutModal from "@/components/CheckoutModal";
 
 export default function DisputeShieldPage() {
-  const [checkout, setCheckout] = useState<"monthly" | "lifetime" | null>(null);
+  const [checkout, setCheckout] = useState<"six-month" | null>(null);
   const [generating, setGenerating] = useState(false);
   const [status, setStatus] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
   const [form, setForm] = useState({
     storeName: "",
     orderId: "",
@@ -23,6 +25,10 @@ export default function DisputeShieldPage() {
 
   const inputClass = "mt-2 h-11 w-full border border-[#222226] bg-[#09090B] px-3 text-sm text-[#FAFAFA] placeholder:text-[#5F5F66]";
   const labelClass = "text-[11px] font-medium text-[#B3B3B8]";
+
+  useEffect(() => {
+    setUnlocked(window.localStorage.getItem("drydock_ds_unlocked") === "true");
+  }, []);
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -47,8 +53,9 @@ export default function DisputeShieldPage() {
   async function generateDossier(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (typeof window !== "undefined" && window.localStorage.getItem("drydock_ds_free_used") === "true") {
-      setCheckout("monthly");
+    const isUnlocked = window.localStorage.getItem("drydock_ds_unlocked") === "true";
+    if (!isUnlocked && window.localStorage.getItem("drydock_ds_free_used") === "true") {
+      setCheckout("six-month");
       return;
     }
 
@@ -76,12 +83,30 @@ export default function DisputeShieldPage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      window.localStorage.setItem("drydock_ds_free_used", "true");
+      if (!isUnlocked) {
+        window.localStorage.setItem("drydock_ds_free_used", "true");
+      }
       setStatus("Dossier generated and downloaded.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to generate dossier.");
     } finally {
       setGenerating(false);
+    }
+  }
+
+  function unlockDisputeShield() {
+    const validKeys = (process.env.NEXT_PUBLIC_DISPUTESHIELD_ACCESS_KEYS || "DRYDOCK-6M-FOUNDER")
+      .split(",")
+      .map((key) => key.trim())
+      .filter(Boolean);
+
+    if (validKeys.includes(accessKey.trim())) {
+      window.localStorage.setItem("drydock_ds_unlocked", "true");
+      setUnlocked(true);
+      setAccessKey("");
+      setStatus("6-Month Access Pass unlocked. Unlimited dossiers enabled.");
+    } else {
+      setStatus("Access key not recognized.");
     }
   }
 
@@ -207,9 +232,27 @@ export default function DisputeShieldPage() {
               <textarea className="mt-2 min-h-28 w-full resize-y border border-[#222226] bg-[#09090B] px-3 py-3 text-sm text-[#FAFAFA] placeholder:text-[#5F5F66]" required value={form.policySummary} onChange={(event) => updateField("policySummary", event.target.value)} placeholder="Describe shipping, delivery, return, and refund terms..." />
             </label>
             <div className="mt-2 flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:justify-between">
-              <p className="font-mono text-[9px] text-[#8E8E93]" aria-live="polite">{status || "FREE FILE // 1 REMAINING ON THIS DEVICE"}</p>
+              <div>
+                <p className="font-mono text-[9px] text-[#8E8E93]" aria-live="polite">
+                  {status || (unlocked ? "6-MONTH ACCESS // UNLIMITED PDFs" : "FREE FILE // 1 REMAINING ON THIS DEVICE")}
+                </p>
+                <div className="mt-3 flex max-w-lg items-end gap-2">
+                  <label className="min-w-0 flex-1 text-[10px] text-[#8E8E93]">
+                    Already have a 6-Month Access Key? Enter Key
+                    <input
+                      value={accessKey}
+                      onChange={(event) => setAccessKey(event.target.value)}
+                      placeholder="DRYDOCK-6M-..."
+                      className="mt-2 h-10 w-full border border-[#222226] bg-[#09090B] px-3 text-xs text-[#FAFAFA] placeholder:text-[#5F5F66]"
+                    />
+                  </label>
+                  <button type="button" onClick={unlockDisputeShield} className="h-10 shrink-0 rounded-lg border border-[#333338] px-3 text-xs font-semibold hover:border-[#4A4A50]">
+                    {unlocked ? "Unlocked" : "Unlock"}
+                  </button>
+                </div>
+              </div>
               <button type="submit" disabled={generating} className="h-11 min-w-48 rounded-lg bg-[#FAFAFA] px-5 text-sm font-semibold text-[#09090B] disabled:cursor-wait disabled:opacity-60">
-                {generating ? "Generating..." : "Generate & Download PDF"}
+                {generating ? "Generating..." : unlocked ? "Generate Unlimited PDF" : "Generate & Download PDF"}
               </button>
             </div>
           </form>
@@ -219,27 +262,22 @@ export default function DisputeShieldPage() {
       <section className="border-b border-[#222226]">
         <div className="mx-auto max-w-7xl px-5 py-16 md:px-8">
           <p className="font-mono text-[10px] tracking-[0.14em] text-[#8E8E93]">PRICING // ONE-TOOL ACCESS</p>
-          <div className="mt-6 grid gap-3 md:grid-cols-2">
-            <article className="rounded-xl border border-[#222226] bg-[#111113] p-6 md:p-8">
-              <p className="font-mono text-[10px] text-[#8E8E93]">STANDARD / MONTHLY</p>
-              <div className="mt-5 flex items-end gap-1"><span className="font-mono text-5xl">$79</span><span className="pb-2 text-xs text-[#8E8E93]">/mo</span></div>
-              <p className="mt-5 text-sm text-[#8E8E93]">Full DisputeShield access. Cancel anytime.</p>
-              <button type="button" onClick={() => setCheckout("monthly")} className="mt-8 h-11 w-full rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B]">Choose Monthly</button>
-            </article>
-            <article className="rounded-xl border border-[#333338] bg-[#111113] p-6 md:p-8">
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-[10px] text-[#10B981]">FOUNDING ACCESS</p>
-                <span className="font-mono text-[9px] text-[#8E8E93]">25 SPOTS</span>
-              </div>
-              <div className="mt-5 flex items-end gap-1"><span className="font-mono text-5xl">$299</span><span className="pb-2 text-xs text-[#8E8E93]">one-time</span></div>
-              <p className="mt-5 text-sm text-[#8E8E93]">Founding lifetime access. Limited batch.</p>
-              <button type="button" onClick={() => setCheckout("lifetime")} className="mt-8 h-11 w-full rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B]">Reserve Lifetime Access</button>
-            </article>
-          </div>
+          <article className="mt-6 rounded-xl border border-[#333338] bg-[#111113] p-6 md:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-mono text-[10px] text-[#10B981]">6-MONTH ACCESS PASS</p>
+              <span className="font-mono text-[9px] text-[#8E8E93]">DIRECT GREY / BANK TRANSFER</span>
+            </div>
+            <div className="mt-5 flex items-end gap-2">
+              <span className="font-mono text-5xl">$399</span>
+              <span className="pb-2 text-xs text-[#8E8E93]">/ 6 months</span>
+            </div>
+            <p className="mt-5 text-sm text-[#8E8E93]">Unlimited DisputeShield PDF dossiers for 6 months.</p>
+            <button type="button" onClick={() => setCheckout("six-month")} className="mt-8 h-11 w-full rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B]">Get 6-Month Access Pass</button>
+          </article>
         </div>
       </section>
 
-      <CheckoutModal open={checkout !== null} onClose={() => setCheckout(null)} plan={checkout ?? "monthly"} />
+      <CheckoutModal open={checkout !== null} onClose={() => setCheckout(null)} plan="six-month" />
     </>
   );
 }

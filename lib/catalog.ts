@@ -11,6 +11,7 @@ export type Tool = {
   highlights?: string[];
   monthlyPrice: number;
   lifetimePrice?: number;
+  sixMonthPrice?: number;
 };
 
 export type Vertical = {
@@ -55,8 +56,8 @@ export const catalog: Vertical[] = [
           "Formatted for Stripe & Shopify dispute reason codes",
           "Zero manual spreadsheet assembly",
         ],
-        monthlyPrice: 79,
-        lifetimePrice: 299,
+        monthlyPrice: 399,
+        sixMonthPrice: 399,
       },
       {
         id: "02",
