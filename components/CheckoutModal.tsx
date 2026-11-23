@@ -1,20 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 
 type CheckoutModalProps = {
   open: boolean;
   onClose: () => void;
   plan: "six-month";
+  remaining?: number;
 };
 
-export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProps) {
+export default function CheckoutModal({ open, onClose, plan, remaining: initialRemaining = 10 }: CheckoutModalProps) {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [transferReference, setTransferReference] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [remaining, setRemaining] = useState(initialRemaining);
+
+  useEffect(() => {
+    if (!open) return;
+    setRemaining(initialRemaining);
+    fetch("/api/disputes/spots", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((spots) => {
+        if (spots && typeof spots.remaining === "number") setRemaining(spots.remaining);
+      })
+      .catch(() => undefined);
+  }, [open, initialRemaining]);
 
   if (!open) return null;
 
@@ -55,6 +68,7 @@ export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProp
         <div className="flex items-start justify-between">
           <div>
             <p className="font-mono text-[10px] text-[#10B981]">6-MONTH ACCESS PASS // $399</p>
+            <p className="mt-2 font-mono text-[9px] text-[#8E8E93]">{remaining} of 10 passes left</p>
             <h2 className="mt-2 text-xl font-semibold">Direct Bank Transfer</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-lg border border-[#222226] text-[#8E8E93] hover:text-white"><X size={15} strokeWidth={1.5} /></button>
@@ -77,6 +91,9 @@ export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProp
           </dl>
           <p className="mt-4 border-t border-[#222226] pt-4 text-xs leading-5 text-[#A1A1AA]">
             <strong className="text-[#FAFAFA]">Reference Note:</strong> Include your email address as the transfer reference.
+          </p>
+          <p className="mt-3 text-[11px] leading-5 text-[#8E8E93]">
+            A founding pass spot is locked in once payment clears and your access key is activated.
           </p>
         </div>
 
@@ -101,8 +118,8 @@ export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProp
               <input required value={transferReference} onChange={(event) => setTransferReference(event.target.value)} placeholder="Reference or transaction ID" className="mt-2 h-11 w-full border border-[#222226] bg-[#09090B] px-3 text-sm text-[#FAFAFA] placeholder:text-[#5F5F66]" />
             </label>
             {error && <p className="text-sm text-red-400">{error}</p>}
-            <button type="submit" disabled={submitting} className="mt-1 h-11 rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B] disabled:opacity-60">
-              {submitting ? "Logging payment..." : "Submit Transfer Proof"}
+            <button type="submit" disabled={submitting || remaining === 0} className="mt-1 h-11 rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B] disabled:cursor-not-allowed disabled:opacity-50">
+              {remaining === 0 ? "All Founding Passes Activated" : submitting ? "Logging payment..." : "Submit Transfer Proof"}
             </button>
           </form>
         )}

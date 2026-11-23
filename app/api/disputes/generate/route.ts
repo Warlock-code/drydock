@@ -2,6 +2,7 @@ import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
 import { NextResponse } from "next/server";
 
 type DisputePayload = {
+  accessKey?: string;
   storeName: string;
   orderId: string;
   transactionAmount: string;
@@ -56,7 +57,7 @@ function wrapText(text: string, font: PDFFont | null, size: number, maxWidth: nu
 }
 
 export async function POST(request: Request) {
-  let payload: DisputePayload;
+  let payload: DisputePayload & { accessKey?: string };
 
   try {
     payload = (await request.json()) as DisputePayload;
@@ -67,6 +68,46 @@ export async function POST(request: Request) {
   for (const field of requiredFields) {
     if (!payload[field] || typeof payload[field] !== "string") {
       return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
+    }
+  }
+
+  if (typeof payload.accessKey === "string" && payload.accessKey.trim()) {
+    const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim().replace(/^["']|["']$/g, "");
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: "Access verification is not configured." }, { status: 503 });
+    }
+
+    const keyCode = payload.accessKey.trim().toUpperCase();
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/access_keys?select=key_code,status,expires_at&key_code=eq.${encodeURIComponent(keyCode)}&limit=1`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+          },
+          cache: "no-store",
+        },
+      );
+
+      if (!response.ok) {
+        return NextResponse.json({ error: "Unable to verify access key." }, { status: 503 });
+      }
+
+      const rows = (await response.json()) as Array<{ key_code: string; status: string; expires_at: string | null }>;
+      const row = rows[0];
+      if (
+        !row ||
+        row.status !== "active" ||
+        !row.expires_at ||
+        new Date(row.expires_at) <= new Date()
+      ) {
+        return NextResponse.json({ error: "Invalid or expired access key." }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Unable to verify access key." }, { status: 503 });
     }
   }
 

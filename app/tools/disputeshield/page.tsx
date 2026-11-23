@@ -10,6 +10,8 @@ export default function DisputeShieldPage() {
   const [status, setStatus] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [unlocked, setUnlocked] = useState(false);
+  const [expiresAt, setExpiresAt] = useState("");
+  const [remaining, setRemaining] = useState(10);
   const [form, setForm] = useState({
     storeName: "",
     orderId: "",
@@ -27,7 +29,47 @@ export default function DisputeShieldPage() {
   const labelClass = "text-[11px] font-medium text-[#B3B3B8]";
 
   useEffect(() => {
-    setUnlocked(window.localStorage.getItem("drydock_ds_unlocked") === "true");
+    async function loadAccessState() {
+      try {
+        const spotsResponse = await fetch("/api/disputes/spots", { cache: "no-store" });
+        if (spotsResponse.ok) {
+          const spots = await spotsResponse.json() as { remaining: number };
+          setRemaining(spots.remaining);
+        }
+      } catch {
+        // Keep the UI at the safe default until the next check.
+      }
+
+      const storedKey = window.localStorage.getItem("drydock_ds_access_key");
+      if (!storedKey) return;
+
+      try {
+        const response = await fetch("/api/keys/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyCode: storedKey }),
+        });
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data?.valid && data.expiresAt) {
+          window.localStorage.setItem("drydock_ds_unlocked", "true");
+          window.localStorage.setItem("drydock_ds_expires_at", data.expiresAt);
+          setUnlocked(true);
+          setExpiresAt(data.expiresAt);
+        } else {
+          window.localStorage.removeItem("drydock_ds_unlocked");
+          window.localStorage.removeItem("drydock_ds_access_key");
+          window.localStorage.removeItem("drydock_ds_expires_at");
+          setUnlocked(false);
+          setExpiresAt("");
+          setStatus(data?.error || "Your access key is no longer active.");
+        }
+      } catch {
+        setUnlocked(false);
+      }
+    }
+
+    loadAccessState();
   }, []);
 
   function updateField(field: keyof typeof form, value: string) {
@@ -54,8 +96,10 @@ export default function DisputeShieldPage() {
     event.preventDefault();
 
     const isUnlocked = window.localStorage.getItem("drydock_ds_unlocked") === "true";
+    const storedAccessKey = window.localStorage.getItem("drydock_ds_access_key");
     if (!isUnlocked && window.localStorage.getItem("drydock_ds_free_used") === "true") {
-      setCheckout("six-month");
+      if (remaining > 0) setCheckout("six-month");
+      else setStatus("All 10 founding passes have been activated.");
       return;
     }
 
@@ -66,7 +110,10 @@ export default function DisputeShieldPage() {
       const response = await fetch("/api/disputes/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          accessKey: isUnlocked ? storedAccessKey || undefined : undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -94,19 +141,40 @@ export default function DisputeShieldPage() {
     }
   }
 
-  function unlockDisputeShield() {
-    const validKeys = (process.env.NEXT_PUBLIC_DISPUTESHIELD_ACCESS_KEYS || "DRYDOCK-6M-FOUNDER")
-      .split(",")
-      .map((key) => key.trim())
-      .filter(Boolean);
+  async function unlockDisputeShield() {
+    if (!accessKey.trim()) {
+      setStatus("Enter an access key.");
+      return;
+    }
 
-    if (validKeys.includes(accessKey.trim())) {
+    try {
+      const response = await fetch("/api/keys/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyCode: accessKey }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.valid) {
+        setStatus(data?.error || "Invalid or revoked access key");
+        return;
+      }
+
       window.localStorage.setItem("drydock_ds_unlocked", "true");
+      window.localStorage.setItem("drydock_ds_access_key", data.keyCode);
+      window.localStorage.setItem("drydock_ds_expires_at", data.expiresAt);
       setUnlocked(true);
+      setExpiresAt(data.expiresAt);
       setAccessKey("");
       setStatus("6-Month Access Pass unlocked. Unlimited dossiers enabled.");
-    } else {
-      setStatus("Access key not recognized.");
+
+      const spotsResponse = await fetch("/api/disputes/spots", { cache: "no-store" });
+      if (spotsResponse.ok) {
+        const spots = await spotsResponse.json() as { remaining: number };
+        setRemaining(spots.remaining);
+      }
+    } catch {
+      setStatus("Unable to verify access key.");
     }
   }
 
@@ -182,6 +250,9 @@ export default function DisputeShieldPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="font-mono text-[10px] tracking-[0.14em] text-[#10B981]">LIVE GENERATOR // 1 FREE DOWNLOAD</p>
+              <span className="mt-4 inline-flex rounded-md border border-[#10B981]/30 px-3 py-2 font-mono text-[9px] text-[#10B981]">
+                {remaining} OF 10 FOUNDING 6-MONTH PASSES REMAINING
+              </span>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight">Live Dispute Dossier Generator</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8E8E93]">Compile transaction, identity, fulfillment, and policy evidence into a structured rebuttal PDF.</p>
             </div>
@@ -234,7 +305,9 @@ export default function DisputeShieldPage() {
             <div className="mt-2 flex flex-col gap-3 md:col-span-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="font-mono text-[9px] text-[#8E8E93]" aria-live="polite">
-                  {status || (unlocked ? "6-MONTH ACCESS // UNLIMITED PDFs" : "FREE FILE // 1 REMAINING ON THIS DEVICE")}
+                  {status || (unlocked
+                    ? `ACTIVE UNTIL ${expiresAt ? new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" }).format(new Date(expiresAt)).toUpperCase() : "VERIFIED"}`
+                    : "FREE FILE // 1 REMAINING ON THIS DEVICE")}
                 </p>
                 <div className="mt-3 flex max-w-lg items-end gap-2">
                   <label className="min-w-0 flex-1 text-[10px] text-[#8E8E93]">
@@ -272,12 +345,14 @@ export default function DisputeShieldPage() {
               <span className="pb-2 text-xs text-[#8E8E93]">/ 6 months</span>
             </div>
             <p className="mt-5 text-sm text-[#8E8E93]">Unlimited DisputeShield PDF dossiers for 6 months.</p>
-            <button type="button" onClick={() => setCheckout("six-month")} className="mt-8 h-11 w-full rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B]">Get 6-Month Access Pass</button>
+            <button type="button" onClick={() => setCheckout("six-month")} disabled={remaining === 0} className="mt-8 h-11 w-full rounded-lg bg-[#FAFAFA] text-sm font-semibold text-[#09090B] disabled:cursor-not-allowed disabled:opacity-50">
+              {remaining === 0 ? "All Founding Passes Activated" : "Get 6-Month Access Pass"}
+            </button>
           </article>
         </div>
       </section>
 
-      <CheckoutModal open={checkout !== null} onClose={() => setCheckout(null)} plan="six-month" />
+      <CheckoutModal open={checkout !== null} onClose={() => setCheckout(null)} plan="six-month" remaining={remaining} />
     </>
   );
 }
