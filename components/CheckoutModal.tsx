@@ -28,8 +28,8 @@ export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProp
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          buyerEmail,
-          transferReference,
+          email: buyerEmail,
+          reference: transferReference,
           plan,
           amount: 399,
         }),
@@ -68,8 +68,10 @@ export default function CheckoutModal({ open, onClose, plan }: CheckoutModalProp
             <dd>Anim-Bronyina Agyekum</dd>
             <dt className="text-[#8E8E93]">Account Number</dt>
             <dd className="font-mono">210631779687</dd>
-            <dt className="text-[#8E8E93]">Routing Number</dt>
-            <dd className="font-mono">[YOUR ROUTING NUMBER]</dd>
+            <dt className="text-[#8E8E93]">ACH Routing Number</dt>
+            <dd className="font-mono">101019644</dd>
+            <dt className="text-[#8E8E93]">Account Type</dt>
+            <dd>Checking</dd>
             <dt className="text-[#8E8E93]">Address</dt>
             <dd>1801 Main St., Kansas City, MO 64108</dd>
           </dl>

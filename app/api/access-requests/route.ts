@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 
 type AccessRequest = {
-  buyerEmail: string;
-  transferReference: string;
-  plan: "six-month";
-  amount: number;
+  email?: string;
+  reference?: string;
+  plan?: string;
+  buyerEmail?: string;
+  transferReference?: string;
+  amount?: number;
 };
 
 export async function POST(request: Request) {
@@ -16,45 +18,76 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  if (!payload.buyerEmail || !payload.transferReference) {
-    return NextResponse.json({ error: "Buyer email and transfer reference are required." }, { status: 400 });
+  const email = payload.email?.trim() || payload.buyerEmail?.trim();
+  const reference = payload.reference?.trim() || payload.transferReference?.trim();
+  const plan = payload.plan || "six-month";
+
+  if (plan !== "six-month") {
+    return NextResponse.json({ error: "Unsupported access plan." }, { status: 400 });
+  }
+
+  if (!email || !reference) {
+    return NextResponse.json({ error: "Email and transfer reference are required." }, { status: 400 });
   }
 
   const record = {
-    ...payload,
+    email,
+    reference,
+    plan,
+    amount: 399,
     status: "PAYMENT_LOGGED",
     created_at: new Date().toISOString(),
   };
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const webhookUrl = process.env.DRYDOCK_REQUEST_WEBHOOK_URL;
+  let stored = false;
+  let storageError = "";
 
   if (supabaseUrl && supabaseKey) {
-    const response = await fetch(`${supabaseUrl}/rest/v1/access_requests`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(record),
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "Payment logging unavailable." }, { status: 503 });
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/access_requests`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(record),
+      });
+      if (response.ok) {
+        stored = true;
+      } else {
+        storageError = `Supabase logging failed (${response.status}).`;
+      }
+    } catch {
+      storageError = "Supabase logging unavailable.";
     }
-  } else if (process.env.DRYDOCK_REQUEST_WEBHOOK_URL) {
-    const response = await fetch(process.env.DRYDOCK_REQUEST_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "disputeshield_access_request", ...record }),
-    });
+  }
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Payment logging unavailable." }, { status: 503 });
+  if (webhookUrl) {
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "disputeshield_access_request", ...record }),
+      });
+      if (response.ok) {
+        stored = true;
+      } else if (!storageError) {
+        storageError = `Webhook logging failed (${response.status}).`;
+      }
+    } catch {
+      if (!storageError) storageError = "Webhook logging unavailable.";
     }
-  } else {
-    return NextResponse.json({ error: "Payment logging is not configured." }, { status: 503 });
+  }
+
+  if (!stored) {
+    if (!supabaseUrl && !supabaseKey && !webhookUrl) {
+      return NextResponse.json({ error: "Payment logging is not configured." }, { status: 503 });
+    }
+    return NextResponse.json({ error: storageError || "Payment logging unavailable." }, { status: 503 });
   }
 
   return NextResponse.json({ ok: true }, { status: 201 });
