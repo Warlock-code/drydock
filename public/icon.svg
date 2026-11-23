@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" width="240" height="56" fill="none">
+  
+  <rect x="4" y="8" width="40" height="40" rx="6" fill="#111113" stroke="#27272A" stroke-width="1.5" />
+  
+  <path d="M14 18V34C14 36.2091 15.7909 38 18 38H30C32.2091 38 34 36.2091 34 34V18" stroke="#FAFAFA" stroke-width="2.5" stroke-linecap="square" />
+  
+  <path d="M20 18H28V29C28 30.6569 26.6569 32 25 32H23C21.3431 32 20 30.6569 20 29V18Z" fill="#FAFAFA" />
+  
+  
+  <text x="58" y="35" fill="#FAFAFA" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="22" font-weight="700" letter-spacing="0.16em">DRYDOCK</text>
+</svg>
