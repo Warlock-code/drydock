@@ -62,8 +62,9 @@ export async function POST(request: Request) {
         const responseBody = await response.text().catch(() => "");
         storageError = `Supabase logging failed (${response.status})${responseBody ? `: ${responseBody.slice(0, 240)}` : "."}`;
       }
-    } catch {
-      storageError = "Supabase logging unavailable.";
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown fetch error";
+      storageError = `Supabase logging unavailable: ${detail}`;
     }
   }
 
