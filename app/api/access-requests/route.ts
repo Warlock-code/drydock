@@ -38,8 +38,8 @@ export async function POST(request: Request) {
     status: "PAYMENT_LOGGED",
     created_at: new Date().toISOString(),
   };
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim().replace(/^["']|["']$/g, "");
   const webhookUrl = process.env.DRYDOCK_REQUEST_WEBHOOK_URL;
   let stored = false;
   let storageError = "";
@@ -59,7 +59,8 @@ export async function POST(request: Request) {
       if (response.ok) {
         stored = true;
       } else {
-        storageError = `Supabase logging failed (${response.status}).`;
+        const responseBody = await response.text().catch(() => "");
+        storageError = `Supabase logging failed (${response.status})${responseBody ? `: ${responseBody.slice(0, 240)}` : "."}`;
       }
     } catch {
       storageError = "Supabase logging unavailable.";
