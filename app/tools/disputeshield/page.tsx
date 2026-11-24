@@ -188,6 +188,9 @@ export default function DisputeShieldPage() {
           </div>
           <h1 className="mt-7 max-w-5xl text-5xl font-semibold leading-[1.02] tracking-[-0.05em] md:text-7xl">Turn chargeback chaos into a 6-page rebuttal dossier.</h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-[#8E8E93] md:text-lg">Turn raw Stripe &amp; Shopify order logs, carrier tracking, and refund policies into a Visa/Mastercard-compliant chargeback rebuttal PDF in 8 seconds.</p>
+          <p className="mt-5 max-w-3xl border-l border-[#10B981]/50 pl-4 text-sm leading-6 text-[#C9C9CE]">
+            One $1,500 chargeback win pays for 2 years of DisputeShield. First 10 founding passes: $399 / 6 months (rises to $499 standard rate once filled) — zero % cuts.
+          </p>
         </div>
       </section>
 
@@ -251,7 +254,7 @@ export default function DisputeShieldPage() {
             <div>
               <p className="font-mono text-[10px] tracking-[0.14em] text-[#10B981]">LIVE GENERATOR // 1 FREE DOWNLOAD</p>
               <span className="mt-4 inline-flex rounded-md border border-[#10B981]/30 px-3 py-2 font-mono text-[9px] text-[#10B981]">
-                {remaining} OF 10 FOUNDING 6-MONTH PASSES REMAINING
+                {remaining} OF 10 FOUNDING PASSES LEFT AT $399 (RISES TO $499)
               </span>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight">Live Dispute Dossier Generator</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#8E8E93]">Compile transaction, identity, fulfillment, and policy evidence into a structured rebuttal PDF.</p>

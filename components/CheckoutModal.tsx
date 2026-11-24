@@ -92,6 +92,12 @@ export default function CheckoutModal({ open, onClose, plan, remaining: initialR
           <p className="mt-4 border-t border-[#222226] pt-4 text-xs leading-5 text-[#A1A1AA]">
             <strong className="text-[#FAFAFA]">Reference Note:</strong> Include your email address as the transfer reference.
           </p>
+          <p className="mt-3 text-xs font-medium leading-5 text-[#C9C9CE]">
+            Founding Rate: $399 / 6 months (Standard rate $499 after 10 spots)
+          </p>
+          <p className="mt-2 text-xs leading-5 text-[#8E8E93]">
+            Have an urgent dispute before transferring? Message <a href="https://x.com/_drydock" target="_blank" rel="noopener noreferrer" className="font-medium text-[#FAFAFA] hover:text-[#10B981]">@_drydock</a> on X.
+          </p>
           <p className="mt-3 text-[11px] leading-5 text-[#8E8E93]">
             A founding pass spot is locked in once payment clears and your access key is activated.
           </p>
